@@ -118,6 +118,30 @@ code.doc-symbol-heading {
   font-weight: bold;
 }
 
+// Backlinks
+.doc-backlink-crumb {
+  display: inline-flex;
+  gap: px2rem(4px);
+  align-items: center;
+  vertical-align: middle;
+  white-space: nowrap;
+
+  // Backlink crumb separator
+  &:not(:first-child)::before {
+    display: inline;
+    width: px2rem(20px);
+    height: px2rem(20px);
+    content: "";
+    background-color: var(--md-default-fg-color--lighter);
+    mask-image: var(--md-path-icon);
+  }
+
+  // Current page
+  &.last {
+    font-weight: bold;
+  }
+}
+
 // Maintain syntax highlighting on cross-references, add underline.
 .doc-signature .autorefs {
   color: inherit;
