@@ -175,6 +175,20 @@ body {
   }
 }
 
+// Visually hidden - remove an element from view while keeping it available to
+// assistive technology, e.g. to give an icon-only control an accessible name
+.md-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 // ----------------------------------------------------------------------------
 // Rules: print styles
 // ----------------------------------------------------------------------------
