@@ -350,7 +350,15 @@ export function setupInstantNavigation(
   // store the current viewport offset for scroll restoration later on.
   instant$.pipe(withLatestFrom(viewport$))
     .subscribe(([url, { offset }]) => {
-      history.replaceState(offset, "")
+      const current = getLocation()
+      const repeated = (
+        current.pathname === url.pathname &&
+        current.hash     === url.hash
+      )
+
+      // Repeated links return to this entry when removing the duplicate below.
+      // Clear its offset so the link still aligns to its target.
+      history.replaceState(repeated ? null : offset, "")
       history.pushState(null, "", url)
     })
 
