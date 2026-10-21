@@ -84,9 +84,10 @@ export function watchLocationHash(
     .pipe(
       map(getLocationHash),
       startWith(getLocationHash()),
-      filter(hash => hash.length > 0),
       map(decodeURIComponent),
-      shareReplay(1)
+      // Cache empty hashes too, so the previous target isn't replayed
+      shareReplay(1),
+      filter(hash => hash.length > 0)
     )
 }
 

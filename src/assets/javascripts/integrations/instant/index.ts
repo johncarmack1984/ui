@@ -326,14 +326,30 @@ export function setupInstantNavigation(
   // the fact that uncaptured events bubble up to the body. This has the nice
   // property that we don't need to detach and then re-attach event listeners
   // when the document is replaced after a navigation event.
-  const instant$ =
+  const navigation$ =
     fromEvent<MouseEvent>(document.body, "click")
       .pipe(
         combineLatestWith(sitemap$),
         switchMap(([ev, sitemap]) => handle(ev, sitemap)),
-        map(({ href }) => new URL(href)),
+        map(({ href }) => {
+          const url = new URL(href)
+          const current = getLocation()
+          return {
+            url,
+            repeated: (
+              current.pathname === url.pathname &&
+              current.hash     === url.hash
+            )
+          }
+        }),
         share()
       )
+
+  const instant$ =
+    navigation$.pipe(
+      map(({ url }) => url),
+      share()
+    )
 
   // Intercept history change events, e.g. when the user uses the browser's
   // back or forward buttons, and emit new location for fetching and parsing
@@ -348,9 +364,11 @@ export function setupInstantNavigation(
   // is fully fetched and parsed, we must schedule it here to synchronize with
   // popstate events, as they are emitted immediately. Moreover we need to
   // store the current viewport offset for scroll restoration later on.
-  instant$.pipe(withLatestFrom(viewport$))
-    .subscribe(([url, { offset }]) => {
-      history.replaceState(offset, "")
+  navigation$.pipe(withLatestFrom(viewport$))
+    .subscribe(([{ url, repeated }, { offset }]) => {
+      // Repeated links return to this entry when removing the duplicate below.
+      // Clear its offset so the link still aligns to its target.
+      history.replaceState(repeated ? null : offset, "")
       history.pushState(null, "", url)
     })
 
@@ -438,7 +456,12 @@ export function setupInstantNavigation(
         a.pathname === b.pathname &&
         a.hash     === b.hash
       )),
-      switchMap(() => instant$),
+      // Tracking can change the fragment without emitting on location$.
+      // Only remove a duplicate if it matched the URL before this click.
+      switchMap(() => navigation$.pipe(
+        filter(({ repeated }) => repeated),
+        map(({ url }) => url)
+      )),
       tap(() => history.back())
     )
   )
@@ -477,13 +500,22 @@ export function setupInstantNavigation(
   // Track viewport offset, so we can restore it when the user navigates back
   // and forth between pages. Note that this must be debounced and cannot be
   // done in popstate, as popstate has already removed the entry from the
-  // history, which means it is too late.
+  // history, which means it is too late. Keep offsets tied to the document
+  // that produced them, since the next URL is set before it has loaded.
   viewport$.pipe(
     distinctUntilKeyChanged("offset"),
+    withLatestFrom(document$.pipe(
+      map(getLocation),
+      startWith(getLocation())
+    )),
+    // Discard outgoing offsets before a navigation can return to their path
+    // while the history write is queued.
+    filter(([, url]) => url.pathname === getLocation().pathname),
     debounceTime(100)
   )
-    .subscribe(({ offset }) => {
-      history.replaceState(offset, "")
+    .subscribe(([{ offset }, url]) => {
+      if (url.pathname === getLocation().pathname)
+        history.replaceState(offset, "")
     })
 
   // --------------------------------------------------------------------------

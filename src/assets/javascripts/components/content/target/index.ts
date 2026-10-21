@@ -36,7 +36,8 @@ import {
   tap
 } from "rxjs"
 
-import { getElements } from "~/browser"
+import { feature } from "~/_"
+import { ViewportOffset, getElements } from "~/browser"
 
 import { Component } from "../../_"
 
@@ -132,6 +133,13 @@ export function mountContentTarget(
       if (!el.contains(current))
         return EMPTY
 
+      const href = window.location.href
+
+      // Capture saved positions before revealing content can change the viewport
+      const offset: ViewportOffset | null = feature("navigation.instant")
+        ? history.state
+        : null
+
       // Reveal the target immediately so synchronous containers, such as
       // details and content tabs, don't need to wait for a rendering cycle.
       // An annotation is different: its tooltip is detached while inactive
@@ -160,8 +168,10 @@ export function mountContentTarget(
           frame
         })),
 
-        // Stop if instant navigation replaced the containing content
-        takeWhile(state => el.contains(state.target)),
+        // Stop if another navigation changed the location or containing content
+        takeWhile(state => (
+          el.contains(state.target) && window.location.href === href
+        )),
 
         // Each replacement can expose another enclosing component to reveal
         tap(state => reveal(el, state.target)),
@@ -173,8 +183,14 @@ export function mountContentTarget(
         )),
         take(1),
 
-        // Reproduce native fragment navigation after all containers are open
-        tap(state => state.target.scrollIntoView()),
+        // Restore history positions after all containers are open; fresh
+        // fragment navigation still aligns the target with the viewport
+        tap(state => {
+          if (typeof offset?.y === "number")
+            window.scrollTo(offset.x, offset.y)
+          else
+            state.target.scrollIntoView()
+        }),
         map(state => ({ ref: state.target, id }))
       )
     }))
