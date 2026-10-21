@@ -477,13 +477,19 @@ export function setupInstantNavigation(
   // Track viewport offset, so we can restore it when the user navigates back
   // and forth between pages. Note that this must be debounced and cannot be
   // done in popstate, as popstate has already removed the entry from the
-  // history, which means it is too late.
+  // history, which means it is too late. Keep offsets tied to the document
+  // that produced them, since the next URL is set before it has loaded.
   viewport$.pipe(
     distinctUntilKeyChanged("offset"),
+    withLatestFrom(document$.pipe(
+      map(getLocation),
+      startWith(getLocation())
+    )),
     debounceTime(100)
   )
-    .subscribe(({ offset }) => {
-      history.replaceState(offset, "")
+    .subscribe(([{ offset }, url]) => {
+      if (url.pathname === getLocation().pathname)
+        history.replaceState(offset, "")
     })
 
   // --------------------------------------------------------------------------

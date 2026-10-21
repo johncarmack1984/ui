@@ -286,6 +286,7 @@ export function mountTableOfContents(
   el: HTMLElement, { viewport$, header$, main$, target$ }: MountOptions
 ): Observable<Component<TableOfContents>> {
   return defer(() => {
+    const { pathname } = getLocation()
     const push$ = new Subject<TableOfContents>()
     const done$ = push$.pipe(ignoreElements(), endWith(true))
     push$.subscribe(({ prev, next }) => {
@@ -360,16 +361,20 @@ export function mountTableOfContents(
     if (feature("navigation.tracking"))
       viewport$
         .pipe(
-          takeUntil(done$),
           distinctUntilKeyChanged("offset"),
           debounceTime(250),
           skip(1),
           takeUntil(target$.pipe(skip(1))),
           repeat({ delay: 250 }),
-          withLatestFrom(push$)
+          withLatestFrom(push$),
+          takeUntil(done$)
         )
           .subscribe(([, { prev }]) => {
             const url = getLocation()
+
+            // The next page's URL is set before the current page is unmounted
+            if (url.pathname !== pathname)
+              return
 
             // Set hash fragment to active anchor
             const anchor = prev[prev.length - 1]
@@ -378,13 +383,13 @@ export function mountTableOfContents(
               const { hash } = new URL(active.href)
               if (url.hash !== hash) {
                 url.hash = hash
-                history.replaceState({}, "", `${url}`)
+                history.replaceState(history.state, "", `${url}`)
               }
 
             // Reset anchor when at the top
             } else {
               url.hash = ""
-              history.replaceState({}, "", `${url}`)
+              history.replaceState(history.state, "", `${url}`)
             }
           })
 
