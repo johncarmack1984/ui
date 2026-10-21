@@ -493,6 +493,9 @@ export function setupInstantNavigation(
       map(getLocation),
       startWith(getLocation())
     )),
+    // Discard outgoing offsets before a navigation can return to their path
+    // while the history write is queued.
+    filter(([, url]) => url.pathname === getLocation().pathname),
     debounceTime(100)
   )
     .subscribe(([{ offset }, url]) => {

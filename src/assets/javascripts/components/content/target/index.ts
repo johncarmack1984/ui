@@ -133,6 +133,8 @@ export function mountContentTarget(
       if (!el.contains(current))
         return EMPTY
 
+      const href = window.location.href
+
       // Capture saved positions before revealing content can change the viewport
       const offset: ViewportOffset | null = feature("navigation.instant")
         ? history.state
@@ -166,8 +168,10 @@ export function mountContentTarget(
           frame
         })),
 
-        // Stop if instant navigation replaced the containing content
-        takeWhile(state => el.contains(state.target)),
+        // Stop if another navigation changed the location or containing content
+        takeWhile(state => (
+          el.contains(state.target) && window.location.href === href
+        )),
 
         // Each replacement can expose another enclosing component to reveal
         tap(state => reveal(el, state.target)),
